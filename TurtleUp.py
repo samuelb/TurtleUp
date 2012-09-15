@@ -7,7 +7,6 @@ import os
 import sys
 import wx
 import urllib
-import getopt
 from ConfigParser import SafeConfigParser
 import platform
 import libtorrent
@@ -154,7 +153,7 @@ class TurtleUp(wx.Frame):
             dlg.Destroy()
         if app['striptopfolder']:
             app['dest'] = os.path.dirname(app['dest'])
-	    tfp = urllib.urlopen(app['torrent'])
+        tfp = urllib.urlopen(app['torrent'])
         tbdc = libtorrent.bdecode(tfp.read())
         tinfo = libtorrent.torrent_info(tbdc)
         app['download'] = self.lt.add_torrent(tinfo, app['dest'].encode('ASCII'))
