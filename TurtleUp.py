@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 VERSION = '0.9'
-applist_url = 'http://tracker/games.ini'
+APPLIST = 'http://tracker/games.ini'
 
 import os
 import sys
@@ -13,6 +13,8 @@ import libtorrent
 import time
 from threading import Thread
 
+applist_url = APPLIST
+#applist_url = 'file://%s/games.ini' % os.getcwd()
 
 ISWIN = platform.system() == 'Windows'
 if ISWIN:
@@ -63,13 +65,13 @@ class TurtleUp(wx.Frame):
         
         try:
             self.apps = AppDB(url)
-        except Exception:
-            text = 'Failed to download App informations.'
+        except Exception, e:
+            text = 'Failed to download App informations.\n\n%s' % e
             dlg = wx.MessageDialog(self, text, 'Damn!', wx.OK|wx.ICON_ERROR)
             dlg.ShowModal()
             dlg.Destroy()
             sys.exit(1)
-
+        self.ResolvRegLookups()
         self.InitUI()
         self.InitBT()
         self.Centre()
@@ -99,7 +101,8 @@ class TurtleUp(wx.Frame):
             self.Bind(wx.EVT_BUTTON, self.OnStartStopButton, id=app['id'])
             
             # diable uninstallable apps
-            if not self.IsInstallable(app):
+            #if not self.IsInstallable(app):
+            if app['dest'] is None and app['destreq']:
                 app['button'].Enable(False)
                 app['stat'].SetLabel(app['destreqtext'])
                 app['stat'].SetForegroundColour(wx.RED)
@@ -130,8 +133,8 @@ class TurtleUp(wx.Frame):
             try:
                 if self.StartUpdate(button.GetId()):
                     button.SetLabel('Stop')
-            except Exception:
-                dlg = wx.MessageDialog(self, 'Something went wrong!', 'Shit!', wx.OK|wx.ICON_ERROR)
+            except Exception, e:
+                dlg = wx.MessageDialog(self, 'Something went wrong!\n\n%s' % e, 'Shit!', wx.OK|wx.ICON_ERROR)
                 dlg.ShowModal()
         else:
             self.StopUpdate(button.GetId())
@@ -142,21 +145,24 @@ class TurtleUp(wx.Frame):
         self.lt.listen_on(6881, 6891)
 
     def StartUpdate(self, aid):
-        # TODO: use exceptions instead of return values
         app = self.apps.getFirst(id=aid)
         if app['dest'] == 'prompt':
-            dlg = wx.DirDialog(self, "Choose installation directory")
-            if dlg.ShowModal() == wx.ID_OK:
+            dlg = wx.DirDialog(self, 'Choose installation directory')
+            ret = dlg.ShowModal()
+            if ret == wx.ID_OK:
                 app['dest'] = dlg.GetPath()
             else:
+                dlg = wx.MessageDialog(self, 'You need to choose a valid installation directory', 'Oh no!', wx.OK|wx.ICON_ERROR)
+                dlg.ShowModal()
                 return False
-            dlg.Destroy()
-        if app['striptopfolder']:
-            app['dest'] = os.path.dirname(app['dest'])
+        if not os.path.exists(app['dest']) and app['destreq']:
+            dlg = wx.MessageDialog(self, 'Install directory does not exist', 'Narf!', wx.OK|wx.ICON_ERROR)
+            dlg.ShowModal()
+            return False
         tfp = urllib.urlopen(app['torrent'])
         tbdc = libtorrent.bdecode(tfp.read())
         tinfo = libtorrent.torrent_info(tbdc)
-        app['download'] = self.lt.add_torrent(tinfo, app['dest'].encode('ASCII'))
+        app['download'] = self.lt.add_torrent(tinfo, '.', app['dest'].encode('ASCII'))
         app['updater'] = UpdateProgress(self, app['download'], aid)
         return True
        
@@ -180,10 +186,25 @@ class TurtleUp(wx.Frame):
         app['stat'].SetLabel('%s %d%% - down: %d kB/s up: %d kB/s peers: %d' %
             (state_str[status.state], status.progress * 100, status.download_rate / 1000, status.upload_rate / 1000, status.num_peers))
     
-    def IsInstallable(self, app):
-        if app['destreq'] and not os.path.exists(app['dest']):
-            return False
-        return True
+    #def IsInstallable(self, app):
+    #    if app['destreq'] and not os.path.exists(app['dest']):
+    #        return False
+    #    return True
+    
+    def ResolvRegLookups(self):
+        for app in self.apps.getAll():
+            if app['dest'][:3].lower() == 'reg':
+                if ISWIN:
+                    try:
+                        rp = app['dest'][4:].replace('/', '\\')
+                        hkey, rp = rp.split('\\', 1)
+                        rp, item = rp.rsplit('\\', 1)
+                        r = _winreg.OpenKey(getattr(_winreg, hkey), rp)
+                        app['dest'] = _winreg.QueryValueEx(r, item)[0]
+                    except WindowsError:
+                        app['dest'] = None
+                else:
+                    app['dest'] = None
 
 
 class RATable():
@@ -246,25 +267,11 @@ class AppDB(RATable):
             data = {'id': self.getID(),
                     'name': section,
                     'torrent': cp.get(section, 'torrent'),
-                    'dest': self.evalDest(cp.get(section, 'dest')),
+                    'dest': cp.get(section, 'dest'),
                     'destreq': cp.getboolean(section, 'destreq'),
                     'destreqtext': cp.get(section, 'destreqtext'),
-                    'striptopfolder': cp.getboolean(section, 'striptopfolder')
                     }
             self.addApp(data)
-            
-    def evalDest(self, dest):
-        if ISWIN:
-            if dest[:3].lower() == 'reg':
-                try:
-                    rp = dest[4:].replace('/', '\\')
-                    hkey, rp = rp.split('\\', 1)
-                    rp, item = rp.rsplit('\\', 1)
-                    r = _winreg.OpenKey(getattr(_winreg, hkey), rp)
-                    dest = _winreg.QueryValueEx(r, item)[0]
-                except WindowsError:
-                    pass
-        return dest
 
 
 if __name__ == '__main__':
