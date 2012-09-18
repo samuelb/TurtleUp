@@ -164,7 +164,7 @@ class TurtleUp(wx.Frame):
         tfp = urllib.urlopen(app['torrent'])
         tbdc = libtorrent.bdecode(tfp.read())
         tinfo = libtorrent.torrent_info(tbdc)
-        app['download'] = self.lt.add_torrent(tinfo, '.', app['dest'].encode('ASCII'))
+        app['download'] = self.lt.add_torrent(tinfo, app['dest'].encode('ASCII'))
         app['updater'] = UpdateProgress(self, app['download'], aid)
         return True
        
