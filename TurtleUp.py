@@ -48,7 +48,6 @@ class UpdateProgress(Thread):
 
     def run(self):
         self.running = True
-        #while not self.dl.is_seed() and self.running:
         while self.running:
             wx.PostEvent(self.wxo, UpdateProgressEvent((self.app, self.dl.status())))
             time.sleep(1)
@@ -184,11 +183,6 @@ class TurtleUp(wx.Frame):
         app['stat'].SetLabel('%s %d%% - down: %d kB/s up: %d kB/s peers: %d' %
             (state_str[status.state], status.progress * 100, status.download_rate / 1000, status.upload_rate / 1000, status.num_peers))
 
-    #def IsInstallable(self, app):
-    #    if app['destreq'] and not os.path.exists(app['dest']):
-    #        return False
-    #    return True
-
     def ResolvRegLookups(self):
         for app in self.apps.getAll():
             if app['dest'][:3].lower() == 'reg':
@@ -205,58 +199,31 @@ class TurtleUp(wx.Frame):
                     app['dest'] = None
 
 
-class RATable():
+class AppDB():
 
-    def __init__(self, data=[]):
-        self.data = data
+    def __init__(self, url=None):
+        self.data = []
+        self.nextID = 0
+        if url:
+            self.readFromINI(url)
 
     def addApp(self, data):
         self.data.append(data)
+            
+    def getID(self):
+        nid = self.nextID
+        self.nextID += 1
+        return nid
+
+    def getAll(self):
+        return self.data
 
     def getFirst(self, **kwargs):
         field = kwargs.keys()[0]
         for row in self.data:
             if row[field] == kwargs[field]:
                 return row
-
-    def getAll(self):
-        return self.data
-
-    def getAnd(self, **kwargs):
-        result = []
-        for row in self.data:
-            flag = True
-            for field in kwargs:
-                if row[field] != kwargs[field]:
-                    flag = False
-                    break
-            if flag:
-                result.append(row)
-        return result
-
-    def getOr(self, **kwargs):
-        result=[]
-        for row in self.data:
-            for field in kwargs:
-                if row.has_key(field) and row[field] == kwargs[field]:
-                    result.append(row)
-                    break
-        return result
-
-
-class AppDB(RATable):
-
-    def __init__(self, url=None):
-        RATable.__init__(self)
-        self.nextID = 0
-        if url:
-            self.readFromINI(url)
-
-    def getID(self):
-        nid = self.nextID
-        self.nextID += 1
-        return nid
-
+        
     def readFromINI(self, url):
         cp = SafeConfigParser()
         fp = urllib.urlopen(url)
