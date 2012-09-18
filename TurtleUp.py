@@ -78,13 +78,22 @@ class TurtleUp(wx.Frame):
         self.Show()
         
     def InitUI(self):
-        panel = wx.Panel(self)
-        mainSizer = wx.BoxSizer(wx.VERTICAL)
-        appListSizer = wx.BoxSizer(wx.VERTICAL)
-        
+        self.SetSize((375, 300))
+               
         boldFont = wx.SystemSettings_GetFont(wx.SYS_SYSTEM_FONT)
         boldFont.SetWeight(wx.BOLD)
-
+                                      
+        panel = wx.ScrolledWindow(self, -1, style=(wx.TAB_TRAVERSAL | wx.SUNKEN_BORDER))
+        panel.SetScrollRate(10, 10)
+        exitButton = wx.Button(self, 999, label='Exit')
+                                                                              
+        mainsizer = wx.BoxSizer(wx.VERTICAL)
+        listsizer = wx.BoxSizer(wx.VERTICAL)
+                                                               
+        mainsizer.Add(panel, 1, wx.EXPAND, 0)
+        mainsizer.AddSpacer(5)
+        mainsizer.Add(exitButton, 0, wx.ALIGN_RIGHT, 0)
+       
         for app in self.apps.getAll():
             appBox = wx.StaticBox(panel, label=app['name'])
             appBox.SetFont(boldFont)
@@ -97,24 +106,17 @@ class TurtleUp(wx.Frame):
             tmpSizer.Add(app['button'])
             appSizer.Add(tmpSizer)
             appSizer.Add(app['stat'])
-            appListSizer.Add(appSizer, -1, wx.ALL ^ wx.BOTTOM, 3)
+            listsizer.Add(appSizer, -1, wx.ALL ^ wx.BOTTOM, 3)
             self.Bind(wx.EVT_BUTTON, self.OnStartStopButton, id=app['id'])
-            
+                                                                                                                                                                                   
             # diable uninstallable apps
             #if not self.IsInstallable(app):
             if app['dest'] is None and app['destreq']:
                 app['button'].Enable(False)
                 app['stat'].SetLabel(app['destreqtext'])
-                app['stat'].SetForegroundColour(wx.RED)
-            
-        mainSizer.Add(appListSizer)
-        mainSizer.AddSpacer(3)
-        mainSizer.Add(wx.Button(panel, 999, label='Exit'), 0, wx.ALIGN_RIGHT | wx.ALL, 3)
-        
-        panel.SetSizerAndFit(mainSizer)
-        rootSizer = wx.BoxSizer(wx.VERTICAL)
-        rootSizer.Add(panel, 1, wx.GROW)
-        self.SetSizerAndFit(rootSizer)
+                app['stat'].SetForegroundColour(wx.RED)                                                                                                                                                                                                                                                                          
+        self.SetSizer(mainsizer)
+        panel.SetSizer(listsizer)
         
         self.Bind(wx.EVT_BUTTON, self.OnExit, id=999)
         self.Bind(wx.EVT_CLOSE, self.OnExit)
