@@ -29,7 +29,7 @@ EVT_PROGRESS_ID = wx.NewId()
 
 
 class UpdateProgressEvent(wx.PyEvent):
-    
+
     def __init__(self, data):
         wx.PyEvent.__init__(self)
         self.SetEventType(EVT_PROGRESS_ID)
@@ -45,7 +45,7 @@ class UpdateProgress(Thread):
         self.app = app
         self.running = False
         self.start()
-    
+
     def run(self):
         self.running = True
         #while not self.dl.is_seed() and self.running:
@@ -59,10 +59,10 @@ class UpdateProgress(Thread):
 
 
 class TurtleUp(wx.Frame):
- 
+
     def __init__(self, parent, title, url):
-        super(TurtleUp, self).__init__(parent, title=title, style=wx.DEFAULT_FRAME_STYLE ^ wx.RESIZE_BORDER)
-        
+        super(TurtleUp, self).__init__(parent, title=title)
+
         try:
             self.apps = AppDB(url)
         except Exception, e:
@@ -76,59 +76,55 @@ class TurtleUp(wx.Frame):
         self.InitBT()
         self.Centre()
         self.Show()
-        
+
     def InitUI(self):
-        self.SetSize((375, 300))
-               
         boldFont = wx.SystemSettings_GetFont(wx.SYS_SYSTEM_FONT)
         boldFont.SetWeight(wx.BOLD)
-                                      
+
         panel = wx.ScrolledWindow(self, -1, style=(wx.TAB_TRAVERSAL | wx.SUNKEN_BORDER))
         panel.SetScrollRate(10, 10)
         exitButton = wx.Button(self, 999, label='Exit')
-                                                                              
+
         mainsizer = wx.BoxSizer(wx.VERTICAL)
         listsizer = wx.BoxSizer(wx.VERTICAL)
-                                                               
+
         mainsizer.Add(panel, 1, wx.EXPAND, 0)
         mainsizer.AddSpacer(5)
         mainsizer.Add(exitButton, 0, wx.ALIGN_RIGHT, 0)
-       
+
         for app in self.apps.getAll():
             appBox = wx.StaticBox(panel, label=app['name'])
             appBox.SetFont(boldFont)
             appSizer = wx.StaticBoxSizer(appBox, wx.VERTICAL)
             tmpSizer = wx.BoxSizer(wx.HORIZONTAL)
             app['stat'] = wx.StaticText(panel, label=' ')
-            app['gauge'] = wx.Gauge(panel, size=(250, 25))
+            app['gauge'] = wx.Gauge(panel, size=(-1, 25))
             app['button'] = wx.Button(panel, app['id'], label='Start', size=(-1, 25))
             tmpSizer.Add(app['gauge'], -1, wx.RIGHT, 3)
             tmpSizer.Add(app['button'])
-            appSizer.Add(tmpSizer)
+            appSizer.Add(tmpSizer, -1, wx.EXPAND)
             appSizer.Add(app['stat'])
-            listsizer.Add(appSizer, -1, wx.ALL ^ wx.BOTTOM, 3)
+            listsizer.Add(appSizer, -1, wx.EXPAND | (wx.ALL ^ wx.BOTTOM), 3)
             self.Bind(wx.EVT_BUTTON, self.OnStartStopButton, id=app['id'])
-                                                                                                                                                                                   
             # diable uninstallable apps
-            #if not self.IsInstallable(app):
             if app['dest'] is None and app['destreq']:
                 app['button'].Enable(False)
                 app['stat'].SetLabel(app['destreqtext'])
-                app['stat'].SetForegroundColour(wx.RED)                                                                                                                                                                                                                                                                          
+                app['stat'].SetForegroundColour(wx.RED)
         self.SetSizer(mainsizer)
         panel.SetSizer(listsizer)
-        
+        self.SetSize((390, 400))
         self.Bind(wx.EVT_BUTTON, self.OnExit, id=999)
         self.Bind(wx.EVT_CLOSE, self.OnExit)
         self.Connect(-1, -1, EVT_PROGRESS_ID, self.UpdateProgress)
-        
+
     def OnExit(self, event):
         # TODO: stop torrents
         for app in self.apps.getAll():
             self.StopUpdate(app['id'])
         self.Destroy()
         sys.exit(0)
-        
+
     def OnStartStopButton(self, event):
         button = event.GetEventObject()
         if button.GetLabel() == 'Start':
@@ -141,7 +137,7 @@ class TurtleUp(wx.Frame):
         else:
             self.StopUpdate(button.GetId())
             button.SetLabel('Start')
-        
+
     def InitBT(self):
         self.lt = libtorrent.session()
         self.lt.listen_on(6881, 6891)
@@ -167,7 +163,7 @@ class TurtleUp(wx.Frame):
         app['download'] = self.lt.add_torrent(tinfo, app['dest'].encode('ASCII'))
         app['updater'] = UpdateProgress(self, app['download'], aid)
         return True
-       
+
     def StopUpdate(self, aid):
         app = self.apps.getFirst(id=aid)
         if app.has_key('updater') and app['updater']:
@@ -180,19 +176,19 @@ class TurtleUp(wx.Frame):
                 self.lt.remove_torrent(app['download'])
             except Exception:
                 pass
-        
+
     def UpdateProgress(self, event):
         aid, status = event.data
         app = self.apps.getFirst(id=aid)
         app['gauge'].SetValue(status.progress * 100)
         app['stat'].SetLabel('%s %d%% - down: %d kB/s up: %d kB/s peers: %d' %
             (state_str[status.state], status.progress * 100, status.download_rate / 1000, status.upload_rate / 1000, status.num_peers))
-    
+
     #def IsInstallable(self, app):
     #    if app['destreq'] and not os.path.exists(app['dest']):
     #        return False
     #    return True
-    
+
     def ResolvRegLookups(self):
         for app in self.apps.getAll():
             if app['dest'][:3].lower() == 'reg':
@@ -210,10 +206,10 @@ class TurtleUp(wx.Frame):
 
 
 class RATable():
-    
+
     def __init__(self, data=[]):
         self.data = data
-        
+
     def addApp(self, data):
         self.data.append(data)
 
@@ -222,10 +218,10 @@ class RATable():
         for row in self.data:
             if row[field] == kwargs[field]:
                 return row
-    
+
     def getAll(self):
         return self.data
-    
+
     def getAnd(self, **kwargs):
         result = []
         for row in self.data:
@@ -237,7 +233,7 @@ class RATable():
             if flag:
                 result.append(row)
         return result
-                
+
     def getOr(self, **kwargs):
         result=[]
         for row in self.data:
@@ -249,18 +245,18 @@ class RATable():
 
 
 class AppDB(RATable):
-    
+
     def __init__(self, url=None):
         RATable.__init__(self)
         self.nextID = 0
         if url:
             self.readFromINI(url)
-        
+
     def getID(self):
         nid = self.nextID
         self.nextID += 1
         return nid
-        
+
     def readFromINI(self, url):
         cp = SafeConfigParser()
         fp = urllib.urlopen(url)
@@ -280,5 +276,5 @@ if __name__ == '__main__':
     app = wx.App()
     TurtleUp(None, 'TurtleUp %s' % VERSION, applist_url)
     app.MainLoop()
-    
+
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
